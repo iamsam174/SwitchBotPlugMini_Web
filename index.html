@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwitchBotPlugMini_Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        .draggable { touch-action: none; user-select: none; }
+        .target-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            border-radius: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-[100dvh] select-none flex flex-col relative">
+
+    <div id="screen-launcher" class="h-[100dvh] flex flex-col p-4 md:p-6 overflow-hidden">
+        <header class="flex-none mb-4 md:mb-6 flex justify-between items-center border-b border-slate-700 pb-4">
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider text-pink-200 flex items-center gap-2">
+                <span>🔌</span> SwitchBotPlugMini_Control
+            </h1>
+            <div id="launcher-status" class="px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-2">
+                <span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-rose-500 animate-pulse"></span> 未接続
+            </div>
+        </header>
+
+        <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-4 md:gap-6">
+            <div class="w-full md:w-1/2 lg:w-7/12 flex-1 overflow-y-auto pr-2 md:pr-4 flex flex-col gap-5 md:gap-6 pb-2 custom-scrollbar">
+                
+                <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700">
+                    <h2 class="text-lg md:text-xl font-bold text-slate-300 mb-3 md:mb-4">［機器接続（Bluetoothペアリング）］</h2>
+                    <button id="btn-connect" class="w-full bg-pink-200 hover:bg-pink-300 text-slate-900 font-bold py-4 md:py-5 lg:py-6 rounded-xl transition-all active:scale-95 shadow-lg text-xl md:text-2xl">
+                        SwitchBotに接続する
+                    </button>
+                </div>
+
+                <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700">
+                    <h2 class="text-lg md:text-xl font-bold text-slate-300 mb-4">［動作モードの選択］ <span class="text-sm md:text-base text-slate-400 font-normal block sm:inline mt-1 sm:mt-0">（キーボード［1］［2］［3］）</span></h2>
+                    <div class="grid grid-cols-1 gap-3 md:gap-4">
+                        <button id="mode-btn-1" class="mode-select-btn text-left border-2 border-pink-300 bg-pink-300/10 text-pink-300 font-bold py-3 md:py-4 px-4 md:px-6 rounded-xl text-base md:text-lg transition-all">
+                            ① クリックまたはタップでタイマー実行
+                        </button>
+                        <button id="mode-btn-2" class="mode-select-btn text-left border border-slate-700 bg-slate-900 text-slate-400 font-bold py-3 md:py-4 px-4 md:px-6 rounded-xl text-base md:text-lg transition-all">
+                            ② マウスオーバー（マウスポインタがボタンに触れた瞬間）でタイマー実行
+                        </button>
+                        <button id="mode-btn-3" class="mode-select-btn text-left border border-slate-700 bg-slate-900 text-slate-400 font-bold py-3 md:py-4 px-4 md:px-6 rounded-xl text-base md:text-lg transition-all">
+                            ③ マウスポインタがボタン内にある間スイッチON
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700 flex flex-col gap-3">
+                    <h2 class="text-lg md:text-xl font-bold text-slate-300">［対象物を映すための外付けWebカメラ（任意）］</h2>
+                    <p class="text-sm md:text-base text-slate-400 mt-1">※「起動」を押した後、ブラウザの許可画面が出たら使いたいカメラを選択して「許可」を押してください。</p>
+                    
+                    <button id="btn-out-camera" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-4 md:py-5 rounded-xl transition-all text-base md:text-lg lg:text-xl mt-3">
+                        ▶️ カメラを起動する
+                    </button>
+                    
+                    <div class="flex flex-col sm:flex-row gap-2 mt-3">
+                        <button id="btn-out-camera-switch" class="hidden flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 md:py-4 rounded-xl transition-all text-sm md:text-base">
+                            🔄 別のカメラに切替
+                        </button>
+                        <button id="btn-out-camera-stop" class="hidden flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 md:py-4 rounded-xl transition-all text-sm md:text-base">
+                            ⏹️ カメラを停止
+                        </button>
+                    </div>
+                </div>
+
+                <div class="md:hidden flex-none bg-slate-950 rounded-2xl border-2 border-slate-700 overflow-hidden relative flex items-center justify-center min-h-[160px]">
+                    <video id="webcam-out-mobile" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
+                    <div id="placeholder-out-mobile" class="text-center text-slate-500 p-4 z-10 flex flex-col items-center">
+                        <span class="text-4xl block mb-2">📹</span>
+                        <p class="text-sm font-bold leading-relaxed">起動後、ここにカメラ映像が<br>表示されます</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700">
+                    <div class="flex justify-between items-center mb-3 md:mb-4">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-300">［タイマー秒数設定］ <span class="text-sm md:text-base text-slate-400 font-normal block sm:inline mt-1 sm:mt-0">（矢印キーで微調整）</span></h2>
+                        <span id="timer-val" class="text-3xl md:text-4xl font-mono font-bold text-pink-300 whitespace-nowrap ml-2 flex-shrink-0">5 秒</span>
+                    </div>
+                    <input id="slider-timer" type="range" min="1" max="180" step="1" value="5" class="w-full h-4 md:h-6 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-pink-300">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-300 mb-3">［ボタンサイズ切替］</h2>
+                        <select id="select-size" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 md:p-4 text-slate-200 focus:outline-none text-base md:text-lg font-bold cursor-pointer min-h-[48px] md:min-h-[60px]">
+                            <option value="size-xl" selected>特大（画面の約80%）</option>
+                            <option value="size-l">大</option>
+                            <option value="size-m">中</option>
+                            <option value="size-s">小</option>
+                        </select>
+                    </div>
+                    <div class="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-300 mb-3">［音の切替］</h2>
+                        <select id="select-sound" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 md:p-4 text-slate-200 focus:outline-none text-base md:text-lg font-bold cursor-pointer min-h-[48px] md:min-h-[60px]">
+                            <option value="sound-a" selected>電子音（ピコーン）</option>
+                            <option value="sound-b">ファンファーレ</option>
+                            <option value="sound-none">音なし</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full md:w-1/2 lg:w-5/12 flex-none md:flex-1 flex flex-col gap-4 md:gap-6 border-t-4 border-white md:border-t-0 pt-4 md:pt-0 min-h-0">
+                <div class="hidden md:flex flex-1 bg-slate-950 rounded-2xl border-2 border-slate-700 overflow-hidden relative items-center justify-center min-h-0">
+                    <video id="webcam-out-pc" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
+                    <div id="placeholder-out-pc" class="text-center text-slate-500 p-4 z-10 flex flex-col items-center">
+                        <span class="text-6xl block mb-4">📹</span>
+                        <p class="text-base font-bold leading-relaxed">起動後、ここにカメラ映像が表示されます<br>（ボタンの背景になります）</p>
+                    </div>
+                </div>
+
+                <button id="btn-start" class="flex-none w-full bg-gradient-to-r from-pink-200 to-pink-300 hover:from-pink-100 hover:to-pink-200 text-slate-950 text-2xl md:text-3xl lg:text-4xl font-black py-5 md:py-6 lg:py-8 rounded-2xl transition-all shadow-xl active:scale-[0.98]">
+                    🚀 スタート（実行画面へ）
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="screen-run" class="fixed inset-0 min-h-[100dvh] hidden bg-slate-950 transition-colors duration-300 z-50">
+        <div id="mabeee-target" class="draggable absolute bg-slate-800 border-4 border-slate-700 hover:border-pink-300 rounded-3xl flex flex-col justify-center items-center p-6 cursor-move shadow-2xl transition-colors duration-150 select-none overflow-hidden">
+            <video id="run-webcam" class="target-video hidden" autoplay playsinline muted></video>
+
+            <div id="dwell-indicator" class="absolute inset-x-0 bottom-0 h-0 bg-pink-300/40 transition-all duration-0 pointer-events-none"></div>
+
+            <span id="target-icon" class="pointer-events-none text-6xl md:text-8xl mb-4 md:mb-8 z-10 drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)]">🔌</span>
+            <span id="target-text" class="pointer-events-none text-3xl md:text-5xl lg:text-6xl font-black tracking-widest text-slate-200 z-10 drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)]">スイッチON</span>
+        </div>
+
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 text-center text-xs md:text-sm text-slate-400 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 pointer-events-none shadow-lg whitespace-nowrap">
+            ［1］キー：クリックまたはタップでタイマー実行、［2］キー：マウスオーバーでタイマー実行、［3］キー：マウスポインタがボタン内にある間スイッチON
+        </div>
+
+        <div class="absolute top-6 right-6 z-50">
+            <button id="btn-back" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl shadow-lg border border-slate-700 transition-all active:scale-95 text-base md:text-xl">
+                ↩ 設定に戻る
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(type) {
+            const selectSound = document.getElementById('select-sound').value;
+            if (selectSound === 'sound-none') return;
+
+            if (type === 'start') {
+                if (selectSound === 'sound-a') {
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(900, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                } else if (selectSound === 'sound-b') {
+                    [440, 554, 659, 880].forEach((freq, idx) => {
+                        let osc = audioCtx.createOscillator();
+                        let gain = audioCtx.createGain();
+                        osc.frequency.value = freq;
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.08 + 0.2);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(audioCtx.currentTime + idx * 0.08);
+                        osc.stop(audioCtx.currentTime + idx * 0.08 + 0.2);
+                    });
+                }
+            } else if (type === 'stop') {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            }
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let appMode = 1;
+            let timerSeconds = 5;
+            let isOutputActive = false;
+
+            let outputTimeout = null;
+            let countdownInterval = null;
+            let dwellTimeout = null;
+            let offDelayTimeout = null;
+
+            let streamOut = null;
+            let videoDevices = [];
+            let currentCameraIndex = 0;
+
+            let plugCharacteristic = null;
+
+            // 【SwitchBot Plug Mini 専用UUID】
+            const SB_SERVICE_UUID = 'cba20d00-224d-11e6-9fb8-0002a5d5c51b';
+            const SB_CHAR_UUID = 'cba20002-224d-11e6-9fb8-0002a5d5c51b';
+            const SB_ADVERTISEMENT_UUID = 0xfd3d;
+
+            const scrLauncher = document.getElementById('screen-launcher');
+            const scrRun = document.getElementById('screen-run');
+            const sliderTimer = document.getElementById('slider-timer');
+            const timerVal = document.getElementById('timer-val');
+            const selectSize = document.getElementById('select-size');
+            
+            const btnCamera = document.getElementById('btn-out-camera');
+            const btnCameraSwitch = document.getElementById('btn-out-camera-switch');
+            const btnCameraStop = document.getElementById('btn-out-camera-stop');
+            
+            const videoOutMobile = document.getElementById('webcam-out-mobile');
+            const placeholderOutMobile = document.getElementById('placeholder-out-mobile');
+            const videoOutPc = document.getElementById('webcam-out-pc');
+            const placeholderOutPc = document.getElementById('placeholder-out-pc');
+            
+            const videoRun = document.getElementById('run-webcam');
+            const mabeeeTarget = document.getElementById('mabeee-target');
+            const dwellIndicator = document.getElementById('dwell-indicator');
+            const targetText = document.getElementById('target-text');
+            const targetIcon = document.getElementById('target-icon');
+            const btnConnect = document.getElementById('btn-connect');
+
+            function updateTimerDisplay(value) {
+                timerSeconds = parseInt(value, 10);
+                timerVal.textContent = timerSeconds + ' 秒';
+                sliderTimer.value = timerSeconds;
+            }
+            sliderTimer.addEventListener('input', (e) => updateTimerDisplay(e.target.value));
+
+            function setMode(modeNum) {
+                appMode = modeNum;
+                document.querySelectorAll('.mode-select-btn').forEach((btn, idx) => {
+                    if (idx + 1 === modeNum) {
+                        btn.className = "mode-select-btn text-left border-2 border-pink-300 bg-pink-300/10 text-pink-300 font-bold py-3 md:py-4 px-4 md:px-6 rounded-xl text-base md:text-lg transition-all";
+                    } else {
+                        btn.className = "mode-select-btn text-left border border-slate-700 bg-slate-900 text-slate-400 font-bold py-3 md:py-4 px-4 md:px-6 rounded-xl text-base md:text-lg transition-all";
+                    }
+                });
+
+                if (!scrRun.classList.contains('hidden')) {
+                    resetDwellTracking();
+                    stopOutput();
+                }
+            }
+            document.getElementById('mode-btn-1').addEventListener('click', () => setMode(1));
+            document.getElementById('mode-btn-2').addEventListener('click', () => setMode(2));
+            document.getElementById('mode-btn-3').addEventListener('click', () => setMode(3));
+
+            window.addEventListener('keydown', (e) => {
+                if (e.key === '1') setMode(1);
+                if (e.key === '2') setMode(2);
+                if (e.key === '3') setMode(3);
+
+                if (e.key === 'ArrowLeft') {
+                    let newVal = Math.max(1, timerSeconds - 1);
+                    updateTimerDisplay(newVal);
+                }
+                if (e.key === 'ArrowRight') {
+                    let newVal = Math.min(180, timerSeconds + 1);
+                    updateTimerDisplay(newVal);
+                }
+            });
+
+            if (btnConnect) {
+                btnConnect.addEventListener('click', async () => {
+                    btnConnect.textContent = "ペアリング画面を開いています...";
+
+                    try {
+                        // 【修正】すべてのデバイスを許可し、ユーザーが手動でリストから選べるようにする
+                        const device = await navigator.bluetooth.requestDevice({
+                            acceptAllDevices: true,
+                            optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
+                        });
+
+                        const statusEl = document.getElementById('launcher-status');
+                        
+                        // 薄いピンク背景に赤色文字
+                        statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-red-500"></span> 接続完了`;
+                        statusEl.className = "px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-pink-100 text-red-500 border border-pink-300 flex items-center gap-2";
+
+                        const server = await device.gatt.connect();
+                        const service = await server.getPrimaryService(SB_SERVICE_UUID);
+                        plugCharacteristic = await service.getCharacteristic(SB_CHAR_UUID);
+
+                        // 接続完了ボタンをピンク色に変更
+                        btnConnect.textContent = "接続完了";
+                        btnConnect.className = "w-full bg-pink-500 hover:bg-pink-400 text-white font-bold py-4 md:py-5 lg:py-6 rounded-xl transition-all shadow-lg text-xl md:text-2xl";
+
+                    } catch (err) {
+                        console.error("Bluetooth接続エラー詳細:", err);
+                        btnConnect.textContent = "SwitchBotに接続する";
+                        btnConnect.className = "w-full bg-pink-200 hover:bg-pink-300 text-slate-900 font-bold py-4 md:py-5 lg:py-6 rounded-xl transition-all active:scale-95 shadow-lg text-xl md:text-2xl";
+
+                        if (err.name !== 'NotFoundError') {
+                            alert("接続に失敗しました。\n詳細: " + err.message);
+                        }
+                        const statusEl = document.getElementById('launcher-status');
+                        statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-rose-500"></span> 未接続`;
+                        statusEl.className = "px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-2";
+                    }
+                });
+            }
+
+            async function startCamera(deviceId = null) {
+                try {
+                    if (streamOut) {
+                        streamOut.getTracks().forEach(t => t.stop());
+                        streamOut = null;
+                    }
+                    
+                    const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: true };
+                    streamOut = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    if (videoOutMobile) videoOutMobile.srcObject = streamOut;
+                    if (videoOutPc) videoOutPc.srcObject = streamOut;
+                    videoRun.srcObject = streamOut;
+                    
+                    videoRun.classList.remove('hidden');
+                    if (placeholderOutMobile) placeholderOutMobile.classList.add('hidden');
+                    if (placeholderOutPc) placeholderOutPc.classList.add('hidden');
+                    
+                    btnCamera.classList.add('hidden');
+                    btnCameraSwitch.classList.remove('hidden');
+                    btnCameraStop.classList.remove('hidden');
+                    
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    
+                    if (deviceId) {
+                        currentCameraIndex = videoDevices.findIndex(d => d.deviceId === deviceId);
+                    } else {
+                        currentCameraIndex = 0; 
+                    }
+                    if (currentCameraIndex === -1) currentCameraIndex = 0;
+                    
+                    if (videoDevices.length <= 1) {
+                        btnCameraSwitch.disabled = true;
+                        btnCameraSwitch.classList.replace('bg-slate-700', 'bg-slate-800');
+                        btnCameraSwitch.classList.add('opacity-50', 'cursor-not-allowed');
+                        btnCameraSwitch.textContent = "切替（カメラ1台のみ）";
+                    } else {
+                        btnCameraSwitch.disabled = false;
+                        btnCameraSwitch.classList.replace('bg-slate-800', 'bg-slate-700');
+                        btnCameraSwitch.classList.remove('opacity-50', 'cursor-not-allowed');
+                        btnCameraSwitch.textContent = "🔄 別のカメラに切替";
+                    }
+                    
+                } catch (err) {
+                    console.error(err);
+                    if (err.name === 'NotAllowedError') {
+                        alert("カメラへのアクセスが拒否されました。\nブラウザの許可ダイアログで「許可」を選択してください。");
+                    } else {
+                        alert("カメラの起動に失敗しました。\n詳細: " + err.message);
+                    }
+                }
+            }
+
+            btnCamera.addEventListener('click', () => { startCamera(null); });
+            btnCameraSwitch.addEventListener('click', () => {
+                if (videoDevices.length > 1) {
+                    currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+                    const nextDeviceId = videoDevices[currentCameraIndex].deviceId;
+                    startCamera(nextDeviceId);
+                }
+            });
+            btnCameraStop.addEventListener('click', () => {
+                if (streamOut) {
+                    streamOut.getTracks().forEach(t => t.stop());
+                    streamOut = null;
+                }
+                if (videoOutMobile) videoOutMobile.srcObject = null;
+                if (videoOutPc) videoOutPc.srcObject = null;
+                videoRun.srcObject = null;
+                videoRun.classList.add('hidden');
+                
+                if (placeholderOutMobile) placeholderOutMobile.classList.remove('hidden');
+                if (placeholderOutPc) placeholderOutPc.classList.remove('hidden');
+                
+                btnCamera.classList.remove('hidden');
+                btnCameraSwitch.classList.add('hidden');
+                btnCameraStop.classList.add('hidden');
+            });
+
+
+            document.getElementById('btn-start').addEventListener('click', () => {
+                scrLauncher.classList.add('hidden');
+                scrRun.classList.remove('hidden');
+                mabeeeTarget.className = "draggable absolute bg-slate-800 border-4 border-slate-700 hover:border-pink-300 rounded-3xl flex flex-col justify-center items-center p-6 cursor-move shadow-2xl transition-colors duration-150 select-none overflow-hidden";
+                const size = selectSize.value;
+                if (size === 'size-xl') mabeeeTarget.classList.add('w-[80vw]', 'h-[65vh]');
+                else if (size === 'size-l') mabeeeTarget.classList.add('w-[50vw]', 'h-[45vh]');
+                else if (size === 'size-m') mabeeeTarget.classList.add('w-[35vw]', 'h-[30vh]');
+                else if (size === 'size-s') mabeeeTarget.classList.add('w-[20vw]', 'h-[20vh]');
+                mabeeeTarget.style.top = '45%'; mabeeeTarget.style.left = '50%';
+                mabeeeTarget.style.transform = 'translate(-50%, -50%)';
+                targetText.textContent = "スイッチON"; targetText.classList.remove('text-pink-300'); targetIcon.textContent = "🔌";
+                resetDwellTracking();
+            });
+
+            document.getElementById('btn-back').addEventListener('click', () => {
+                resetDwellTracking(); stopOutput();
+                scrRun.classList.add('hidden'); scrLauncher.classList.remove('hidden');
+            });
+
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+            mabeeeTarget.addEventListener('pointerdown', (e) => {
+                isDragging = true; resetDwellTracking();
+                mabeeeTarget.setPointerCapture(e.pointerId);
+                const rect = mabeeeTarget.getBoundingClientRect();
+                mabeeeTarget.style.transform = 'none'; mabeeeTarget.style.left = rect.left + 'px'; mabeeeTarget.style.top = rect.top + 'px';
+                startX = e.clientX; startY = e.clientY; initialLeft = rect.left; initialTop = rect.top;
+            });
+            mabeeeTarget.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                mabeeeTarget.style.left = (initialLeft + (e.clientX - startX)) + 'px';
+                mabeeeTarget.style.top = (initialTop + (e.clientY - startY)) + 'px';
+            });
+            mabeeeTarget.addEventListener('pointerup', (e) => {
+                if (!isDragging) return; isDragging = false;
+                mabeeeTarget.releasePointerCapture(e.pointerId);
+                if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) handleTriggerInput();
+            });
+
+            async function controlSwitchBot(turnOn) {
+                if (!plugCharacteristic) return;
+                try {
+                    const cmd = turnOn ? new Uint8Array([0x57, 0x0f, 0x50, 0x01, 0x01, 0x80]) 
+                                       : new Uint8Array([0x57, 0x0f, 0x50, 0x01, 0x01, 0x00]);
+                    await plugCharacteristic.writeValue(cmd);
+                } catch (e) {
+                    console.error("SwitchBot write failed:", e);
+                }
+            }
+
+            function startOutput() {
+                if (isOutputActive) return;
+                isOutputActive = true;
+                playBeep('start');
+
+                controlSwitchBot(true);
+
+                scrRun.classList.replace('bg-slate-950', 'bg-pink-950/40');
+                mabeeeTarget.classList.replace('bg-slate-800', 'bg-pink-500/30');
+                mabeeeTarget.classList.add('border-pink-400', 'shadow-[0_0_40px_rgba(244,114,182,0.6)]');
+                targetText.classList.add('text-pink-300');
+                targetIcon.textContent = "⚡🔌";
+
+                if (appMode === 1 || appMode === 2) {
+                    let timeLeft = timerSeconds;
+                    targetText.textContent = `実行中 ${timeLeft} 秒`;
+                    countdownInterval = setInterval(() => {
+                        timeLeft -= 1;
+                        if (timeLeft <= 0) clearInterval(countdownInterval);
+                        else targetText.textContent = `実行中 ${timeLeft} 秒`;
+                    }, 1000);
+                    outputTimeout = setTimeout(() => { stopOutput(); }, timerSeconds * 1000);
+                } else if (appMode === 3) {
+                    targetText.textContent = "実行中";
+                }
+            }
+
+            function stopOutput() {
+                if (!isOutputActive) {
+                    resetUI();
+                    return;
+                }
+                
+                isOutputActive = false;
+                if (outputTimeout) clearTimeout(outputTimeout);
+                if (countdownInterval) clearInterval(countdownInterval);
+                playBeep('stop');
+
+                controlSwitchBot(false);
+
+                resetUI();
+                resetDwellTracking();
+            }
+            
+            function resetUI() {
+                scrRun.className = scrRun.className.replace('bg-pink-950/40', 'bg-slate-950');
+                mabeeeTarget.className = mabeeeTarget.className.replace('bg-pink-500/30', 'bg-slate-800');
+                mabeeeTarget.classList.remove('border-pink-400', 'shadow-[0_0_40px_rgba(244,114,182,0.6)]');
+                targetText.textContent = "スイッチON";
+                targetText.classList.remove('text-pink-300');
+                targetIcon.textContent = "🔌";
+            }
+
+            function handleTriggerInput() {
+                if (isOutputActive && (appMode === 1 || appMode === 2)) return;
+                startOutput();
+            }
+
+            function resetDwellTracking() {
+                if (dwellTimeout) clearTimeout(dwellTimeout);
+                dwellTimeout = null;
+                dwellIndicator.style.transitionDuration = '0ms';
+                dwellIndicator.style.height = '0px';
+            }
+
+            function handleTargetEnter() {
+                if (isDragging) return;
+                if (offDelayTimeout) { clearTimeout(offDelayTimeout); offDelayTimeout = null; }
+
+                if (appMode === 2) {
+                    handleTriggerInput();
+                } else if (appMode === 3) {
+                    startOutput();
+                }
+            }
+
+            function handleTargetLeave() {
+                if (appMode === 3 && isOutputActive) {
+                    offDelayTimeout = setTimeout(() => {
+                        stopOutput(); offDelayTimeout = null;
+                    }, 400);
+                }
+            }
+
+            mabeeeTarget.addEventListener('pointerenter', () => { handleTargetEnter(); });
+            mabeeeTarget.addEventListener('pointerleave', () => { handleTargetLeave(); });
+        });
+    </script>
+</body>
+</html>
