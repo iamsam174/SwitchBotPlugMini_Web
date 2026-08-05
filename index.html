@@ -216,7 +216,7 @@
             // 【SwitchBot Plug Mini 専用UUID】
             const SB_SERVICE_UUID = 'cba20d00-224d-11e6-9fb8-0002a5d5c51b';
             const SB_CHAR_UUID = 'cba20002-224d-11e6-9fb8-0002a5d5c51b';
-            const SB_ADVERTISEMENT_UUID = 0xfd3d;
+            const SB_ADVERTISEMENT_UUID = '0000fd3d-0000-1000-8000-00805f9b34fb';
 
             const scrLauncher = document.getElementById('screen-launcher');
             const scrRun = document.getElementById('screen-run');
@@ -283,30 +283,40 @@
 
             if (btnConnect) {
                 btnConnect.addEventListener('click', async () => {
+                    if (!navigator.bluetooth) {
+                        alert("お使いのブラウザはWeb Bluetoothに対応していません。\n\n※iPhone/iPadをご利用の場合は「Bluefy」アプリで開いてください。\n※Android/Windows/Macの場合はGoogle Chromeをご利用ください。");
+                        return;
+                    }
+
                     btnConnect.textContent = "ペアリング画面を開いています...";
 
                     try {
-                        // 【修正】SwitchBotプラグミニに該当する条件（名前、UUID、メーカーID）でフィルタリング
+                        // iOS(Bluefy)・Android・Mac・Windowsすべてで確実にペアリングできるよう acceptAllDevices: true を指定
                         const device = await navigator.bluetooth.requestDevice({
-                            filters: [
-                                { namePrefix: 'Plug' },
-                                { namePrefix: 'SwitchBot' },
-                                { namePrefix: 'Wo' },
-                                { services: [SB_ADVERTISEMENT_UUID] },
-                                { manufacturerData: [{ companyIdentifier: 0x0969 }] }
-                            ],
+                            acceptAllDevices: true,
                             optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
                         });
 
                         const statusEl = document.getElementById('launcher-status');
                         
-                        // 薄いピンク背景に赤色文字
-                        statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-red-500"></span> 接続完了`;
-                        statusEl.className = "px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-pink-100 text-red-500 border border-pink-300 flex items-center gap-2";
+                        // 切断検知時にUIをリセット
+                        device.addEventListener('gattserverdisconnected', () => {
+                            plugCharacteristic = null;
+                            if (statusEl) {
+                                statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-rose-500"></span> 未接続`;
+                                statusEl.className = "px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-2";
+                            }
+                            btnConnect.textContent = "SwitchBotプラグミニに接続する";
+                            btnConnect.className = "w-full bg-pink-200 hover:bg-pink-300 text-slate-900 font-bold py-4 md:py-5 lg:py-6 rounded-xl transition-all active:scale-95 shadow-lg text-xl md:text-2xl";
+                        });
 
                         const server = await device.gatt.connect();
                         const service = await server.getPrimaryService(SB_SERVICE_UUID);
                         plugCharacteristic = await service.getCharacteristic(SB_CHAR_UUID);
+
+                        // 薄いピンク背景に赤色文字
+                        statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-red-500"></span> 接続完了`;
+                        statusEl.className = "px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm md:text-base lg:text-lg font-bold bg-pink-100 text-red-500 border border-pink-300 flex items-center gap-2";
 
                         // 接続完了ボタンをピンク色に変更
                         btnConnect.textContent = "接続完了";
@@ -314,11 +324,11 @@
 
                     } catch (err) {
                         console.error("Bluetooth接続エラー詳細:", err);
-                        btnConnect.textContent = "SwitchBotに接続する";
+                        btnConnect.textContent = "SwitchBotプラグミニに接続する";
                         btnConnect.className = "w-full bg-pink-200 hover:bg-pink-300 text-slate-900 font-bold py-4 md:py-5 lg:py-6 rounded-xl transition-all active:scale-95 shadow-lg text-xl md:text-2xl";
 
                         if (err.name !== 'NotFoundError') {
-                            alert("接続に失敗しました。\n詳細: " + err.message);
+                            alert("接続に失敗しました。\n詳細: " + err.message + "\n\n※Androidをご利用の場合は、端末設定で「位置情報（GPS）」と「Bluetooth」の両方がONになっているかご確認ください。");
                         }
                         const statusEl = document.getElementById('launcher-status');
                         statusEl.innerHTML = `<span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-rose-500"></span> 未接続`;
@@ -453,7 +463,13 @@
                 try {
                     const cmd = turnOn ? new Uint8Array([0x57, 0x0f, 0x50, 0x01, 0x01, 0x80]) 
                                        : new Uint8Array([0x57, 0x0f, 0x50, 0x01, 0x01, 0x00]);
-                    await plugCharacteristic.writeValue(cmd);
+                    if (plugCharacteristic.writeValueWithResponse) {
+                        await plugCharacteristic.writeValueWithResponse(cmd);
+                    } else if (plugCharacteristic.writeValue) {
+                        await plugCharacteristic.writeValue(cmd);
+                    } else if (plugCharacteristic.writeValueWithoutResponse) {
+                        await plugCharacteristic.writeValueWithoutResponse(cmd);
+                    }
                 } catch (e) {
                     console.error("SwitchBot write failed:", e);
                 }
