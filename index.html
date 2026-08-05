@@ -291,18 +291,55 @@
                     btnConnect.textContent = "ペアリング画面を開いています...";
 
                     try {
-                        // SwitchBotプラグミニのみを一覧に表示し、全プラットフォーム(Windows/Mac/iOS/Android)で確実に検出するフィルター
-                        const device = await navigator.bluetooth.requestDevice({
-                            filters: [
+                        // iOS/Bluefy環境とChromium環境（Windows 11/Android/Mac）で最適なフィルターを切り替え
+                        const isBluefyOrIOS = /Bluefy/i.test(navigator.userAgent) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        
+                        let scanFilters = [];
+                        if (isBluefyOrIOS) {
+                            // iOS(Bluefy): manufacturerDataを含めず、名前プレフィックスで検出
+                            scanFilters = [
+                                { namePrefix: 'WoPlug' },
+                                { namePrefix: 'Plug' },
+                                { namePrefix: 'SwitchBot' },
+                                { namePrefix: 'Wo' }
+                            ];
+                        } else {
+                            // Windows 11 / Android (タブレット・スマホ) / Mac (Chrome/Edge):
+                            // SwitchBotのカンパニーID(0x0969, 0x0059)で確実に検出し、無関係な機器は除外
+                            scanFilters = [
+                                { manufacturerData: [{ companyIdentifier: 0x0969 }] },
+                                { manufacturerData: [{ companyIdentifier: 0x0059 }] },
                                 { namePrefix: 'WoPlug' },
                                 { namePrefix: 'Plug' },
                                 { namePrefix: 'SwitchBot' },
                                 { namePrefix: 'Wo' },
                                 { services: [SB_SERVICE_UUID] },
                                 { services: [SB_ADVERTISEMENT_UUID] }
-                            ],
-                            optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
-                        });
+                            ];
+                        }
+
+                        let device;
+                        try {
+                            device = await navigator.bluetooth.requestDevice({
+                                filters: scanFilters,
+                                optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
+                            });
+                        } catch (filterErr) {
+                            if (filterErr.name !== 'NotFoundError') {
+                                console.warn("一次フィルター例外発生、互換フィルターで再スキャン:", filterErr);
+                                device = await navigator.bluetooth.requestDevice({
+                                    filters: [
+                                        { namePrefix: 'WoPlug' },
+                                        { namePrefix: 'Plug' },
+                                        { namePrefix: 'SwitchBot' },
+                                        { namePrefix: 'Wo' }
+                                    ],
+                                    optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
+                                });
+                            } else {
+                                throw filterErr;
+                            }
+                        }
 
                         const statusEl = document.getElementById('launcher-status');
                         
