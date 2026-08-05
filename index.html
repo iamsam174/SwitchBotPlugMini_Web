@@ -291,9 +291,14 @@
                     btnConnect.textContent = "ペアリング画面を開いています...";
 
                     try {
-                        // iOS(Bluefy)・Android・Mac・Windowsすべてで確実にペアリングできるよう acceptAllDevices: true を指定
+                        // SwitchBotプラグミニのみを一覧に表示するため、名前プレフィックス（WoPlug, Plug, SwitchBot, Wo）でフィルタリング
                         const device = await navigator.bluetooth.requestDevice({
-                            acceptAllDevices: true,
+                            filters: [
+                                { namePrefix: 'WoPlug' },
+                                { namePrefix: 'Plug' },
+                                { namePrefix: 'SwitchBot' },
+                                { namePrefix: 'Wo' }
+                            ],
                             optionalServices: [SB_SERVICE_UUID, SB_ADVERTISEMENT_UUID]
                         });
 
